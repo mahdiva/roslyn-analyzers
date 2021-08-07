@@ -63,6 +63,9 @@ namespace Test.Utilities
         public static ReferenceAssemblies DefaultWithVisualStudioThreading { get; } = Default
             .AddPackages(ImmutableArray.Create(new PackageIdentity("Microsoft.VisualStudio.Threading", "16.10.56")));
 
+        public static ReferenceAssemblies DefaultWithVisualStudioShellInterop { get; } = Default
+            .AddPackages(ImmutableArray.Create(new PackageIdentity("Microsoft.VisualStudio.Shell.15.0", "16.10.31321.278")));
+
         public static MetadataReference SystemCollectionsImmutableReference { get; } = MetadataReference.CreateFromFile(typeof(ImmutableHashSet<>).Assembly.Location);
         public static MetadataReference SystemComponentModelCompositionReference { get; } = MetadataReference.CreateFromFile(typeof(System.ComponentModel.Composition.ExportAttribute).Assembly.Location);
         public static MetadataReference SystemCompositionReference { get; } = MetadataReference.CreateFromFile(typeof(System.Composition.ExportAttribute).Assembly.Location);
