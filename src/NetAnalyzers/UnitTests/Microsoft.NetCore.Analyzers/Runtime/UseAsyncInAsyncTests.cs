@@ -7,9 +7,9 @@ using Xunit;
 using VerifyCS = Test.Utilities.CSharpCodeFixVerifier<
     Microsoft.NetCore.Analyzers.Runtime.UseAsyncInAsync,
     Microsoft.CodeAnalysis.Testing.EmptyCodeFixProvider>;
-//using VerifyVB = Test.Utilities.VisualBasicCodeFixVerifier<
-//    Microsoft.NetCore.Analyzers.Runtime.BufferBlockCopyLengthAnalyzer,
-//    Microsoft.CodeAnalysis.Testing.EmptyCodeFixProvider>;
+using VerifyVB = Test.Utilities.VisualBasicCodeFixVerifier<
+    Microsoft.NetCore.Analyzers.Runtime.UseAsyncInAsync,
+    Microsoft.CodeAnalysis.Testing.EmptyCodeFixProvider>;
 
 namespace Microsoft.NetCore.Analyzers.Runtime.UnitTests
 {
@@ -19,7 +19,7 @@ namespace Microsoft.NetCore.Analyzers.Runtime.UnitTests
         [Fact]
         public async Task TaskWaitInTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -30,13 +30,29 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Dim t As Task = Nothing
+        [|t.Wait()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskWaitInValueTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -47,13 +63,49 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As ValueTask
+        Dim t As Task = Nothing
+        [|t.Wait()|]
+        Return CType(Nothing, ValueTask)
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
+        }
+
+        [Fact]
+        public async Task TaskWait_InIAsyncEnumerableAsyncMethod_ShouldReportWarning() // Feature 'async streams' is not available in C# 7.3. Please use language version 8.0 or greater.
+        {
+            var testCS = @"
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+class Test {
+    async IAsyncEnumerable<int> FooAsync()
+    {
+        [|Task.Delay(TimeSpan.FromSeconds(5)).Wait()|];
+        yield return 1;
+    }
+}
+";
+            //await VerifyCS.VerifyAnalyzerAsync(testCS);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -64,13 +116,29 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task(Of Integer)
+        Dim t As Task(Of Integer) = Nothing
+        Dim result = [|t.Result()|]
+        Return Task.FromResult(result)
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningMethodGeneratesWarning_FixPreservesCall()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -85,13 +153,35 @@ static class Assert {
     internal static void NotNull(object value) => throw null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Dim t As Task(Of Integer) = Nothing
+        Assert.NotNull([|t.Result|])
+        Return Task.CompletedTask
+    End Function
+End Module
+
+Module Assert
+    Friend Sub NotNull(value As Object)
+        Throw New System.Exception()
+    End Sub
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningAnonymousMethodWithinSyncMethod_GeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -105,13 +195,31 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Sub Test()
+        Dim f As Func(Of Task(Of Integer)) = Function()
+                                                 Dim t As Task(Of Integer) = Nothing
+                                                 Dim result As Integer = [|t.Result|]
+                                                 Return Task.FromResult(result)
+                                             End Function
+    End Sub
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningSimpleLambdaWithinSyncMethod_GeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -125,13 +233,31 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Sub Test()
+        Dim f = Function(a)
+                    Dim t As Task(Of Integer) = Nothing
+                    Dim result As Integer = [|t.Result|]
+                    Return Task.FromResult(result)
+                End Function
+    End Sub
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningSimpleLambdaExpressionWithinSyncMethod_GeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -142,13 +268,27 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Sub Test()
+        Dim b As Task(Of Integer) = Nothing
+        Dim f = Function(a) Task.FromResult([|b.Result|])
+    End Sub
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningMethodGeneratesWarning_FixRewritesCorrectExpression()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -158,13 +298,28 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Async Function Test() As Task
+        Await [|Task.Run(Function() Console.Error).Result|].WriteLineAsync()
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningParentheticalLambdaWithinSyncMethod_GeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -178,33 +333,66 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Sub Test()
+        Dim f As Func(Of Task(Of Integer)) = Function()
+                                                 Dim t As Task(Of Integer) = Nothing
+                                                 Dim result As Integer = [|t.Result|]
+                                                 Return Task.FromResult(result)
+                                             End Function
+    End Sub
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskOfTResultInTaskReturningMethodAnonymousDelegate_GeneratesNoWarning()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
 class Test {
     Task<int> T() {
-        {
         Task<int> task = null;
         task.ContinueWith(t => { Console.WriteLine(t.Result); });
         return Task.FromResult(1);
-        }
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task(Of Integer)
+        Dim task As Task(Of Integer) = Nothing
+        task.ContinueWith(Sub(t) Console.WriteLine(t.Result))
+        Return task.FromResult(1)
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task TaskGetAwaiterGetResultInTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -215,13 +403,28 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Dim t As Task = Nothing
+        [|t.GetAwaiter().GetResult()|]
+        Return task.FromResult(1)
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionExistsInSameTypeGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 class Test {
     Task T() {
@@ -232,13 +435,34 @@ class Test {
     internal static Task FooAsync(int x, int y) => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        [|Foo(10, 15)|]
+        Return Task.FromResult(1)
+    End Function
+
+    Friend Sub Foo(x As Integer, y As Integer)
+    End Sub
+    Friend Function FooAsync(x As Integer, y As Integer) As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionIsObsolete_GeneratesNoWarning()
         {
-            var test = @"
+            var testCS = @"
+using System;
 using System.Threading.Tasks;
 
 class Test {
@@ -248,18 +472,41 @@ class Test {
     }
 
     internal static void Foo(int x, int y) { }
-    [System.Obsolete]
+    [Obsolete]
     internal static Task FooAsync(int x, int y) => null;
 }
 ";
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
 
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Foo(10, 15)
+        Return Task.FromResult(1)
+    End Function
+
+    Friend Sub Foo(x As Integer, y As Integer)
+    End Sub
+    <Obsolete>
+    Friend Function FooAsync(x As Integer, y As Integer) As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
-        public async Task SyncInvocationWhereAsyncOptionIsPartlyObsolete_GeneratesWarning()
+        public async Task SyncInvocationWhereAsyncOptionIsPartlyObsolete_GeneratesWarning() // Obsolete
         {
-            var test = @"
+            var testCS = @"
+using System;
 using System.Threading.Tasks;
 
 class Test {
@@ -270,18 +517,44 @@ class Test {
 
     internal static void Foo(int x, int y) { }
     internal static void Foo(int x, double y) { }
-    [System.Obsolete]
+    [Obsolete]
     internal static Task FooAsync(int x, int y) => null;
     internal static Task FooAsync(int x, double y) => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Foo(10, 15.0)
+        Return Task.FromResult(1)
+    End Function
+
+    Friend Sub Foo(x As Integer, y As Integer)
+    End Sub
+    <Obsolete>
+    Friend Function FooAsync(x As Integer, y As Integer) As Task
+        Return Nothing
+    End Function
+    Friend Function FooAsync(x As Integer, y As Double) As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionExistsInSubExpressionGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -294,13 +567,34 @@ class Test {
     internal static Task<int> FooAsync() => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Dim r = [|Foo()|].CompareTo(1)
+        Return Task.FromResult(1)
+    End Function
+
+    Friend Function Foo() As Integer
+        Return 5
+    End Function
+    Friend Function FooAsync() As Task(Of Integer)
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionExistsInOtherTypeGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -315,13 +609,35 @@ class Util {
     internal static Task FooAsync() => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        [|Util.Foo()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Module Util
+    Friend Sub Foo()
+    End Sub
+    Friend Function FooAsync() As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionExistsAsPrivateInOtherTypeGeneratesNoWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -337,13 +653,35 @@ class Util {
 }
 ";
 
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Util.Foo()
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Module Util
+    Friend Sub Foo()
+    End Sub
+    Private Function FooAsync() As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionExistsInOtherBaseTypeGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -362,13 +700,39 @@ class Apple : Fruit {
     internal void Foo() { }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Dim a As Apple = Nothing
+        [|a.Foo()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Class Fruit
+    Friend Function FooAsync() As Task
+        Return Nothing
+    End Function
+End Class
+Class Apple
+    Inherits Fruit
+    Friend Sub Foo()
+    End Sub
+End Class
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationWhereAsyncOptionExistsInExtensionMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -388,13 +752,40 @@ static class FruitUtils {
 }
 ";
 
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports System.Runtime.CompilerServices
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Dim f As Fruit = Nothing
+        [|f.Foo()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Class Fruit
+    Friend Sub Foo()
+    End Sub
+End Class
+Module FruitUtils
+    <Extension()>
+    Friend Function FooAsync(f As Fruit) As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationUsingStaticGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using static FruitUtils;
 
@@ -410,13 +801,36 @@ static class FruitUtils {
     internal static Task FooAsync() => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        [|Foo()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Module FruitUtils
+    Friend Sub Foo()
+    End Sub
+    Friend Function FooAsync() As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task SyncInvocationUsingStaticGeneratesNoWarningAcrossTypes()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using static FruitUtils;
 using static PlateUtils;
@@ -439,13 +853,39 @@ static class PlateUtils {
     internal static Task FooAsync() => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        Foo()
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Module FruitUtils
+    Friend Sub Foo()
+    End Sub
+End Module
+
+Module PlateUtils
+    Friend Function FooAsync() As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task AwaitingAsyncMethodWithoutSuffixProducesNoWarningWhereSuffixVersionExists()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -457,20 +897,36 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+    End Sub
+    Function Foo() As Task
+        Return Nothing
+    End Function
+    Function FooAsync() As Task
+        Return Nothing
+    End Function
+    Async Function BarAsync() As Task
+        Await Foo()
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         /// <summary>
         /// Verifies that when method invocations and member access happens in properties
         /// (which can never be async), nothing bad happens.
         /// </summary>
-        /// <remarks>
-        /// This may like a trivially simple case. But guess why we had to add a test for it? (it failed).
-        /// </remarks>
         [Fact]
         public async Task NoDiagnosticAndNoExceptionForProperties()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 
 class Test {
@@ -478,13 +934,31 @@ class Test {
     string Bar => string.Join(""a"", string.Empty);
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+
+    End Sub
+    Function Foo() As String
+        Return String.Empty
+    End Function
+
+    Function Bar() As String
+        Return String.Join(""a"", String.Empty)
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task GenericMethodName()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using static FruitUtils;
 
@@ -500,13 +974,36 @@ static class FruitUtils {
     internal static Task FooAsync<T>() => null;
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+    Function Test() As Task
+        [|Foo(Of Integer)()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+
+Module FruitUtils
+    Friend Sub Foo(Of t)()
+    End Sub
+    Friend Function FooAsync() As Task
+        Return Nothing
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task AsyncAlternative_CodeFixRespectsTrivia()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -524,13 +1021,37 @@ class Test {
     }
 }
 ";
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+    End Sub
+    Friend Sub Foo()
+    End Sub
+
+    Friend Function FooAsync() As Task
+        Return Task.CompletedTask
+    End Function
+    Async Function DoWorkAsync() As Task
+        Await Task.Yield()
+        Console.WriteLine(""Foo"")
+
+        'Some comment
+        [|Foo()|] 'another comment
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task AwaitRatherThanWait_CodeFixRespectsTrivia()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -541,7 +1062,7 @@ class Test {
     async Task DoWorkAsync()
     {
         await Task.Yield();
-        Console.WriteLine(""Foo"");
+        System.Console.WriteLine(""Foo"");
 
         // Some comment
         [|FooAsync(/*argcomment*/).Wait()|];
@@ -549,13 +1070,37 @@ class Test {
 }
 ";
 
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+    End Sub
+    Friend Sub Foo()
+    End Sub
+
+    Friend Function FooAsync() As Task
+        Return Task.CompletedTask
+    End Function
+    Async Function DoWorkAsync() As Task
+        Await Task.Yield()
+        Console.WriteLine(""Foo"")
+
+        'Some comment
+        [|FooAsync().Wait()|] 'another comment
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task DoNotSuggestAsyncAlternativeWhenItIsSelf()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -573,14 +1118,30 @@ class Test {
     }
 }
 ";
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
 
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+    End Sub
+
+    Async Function CallMainAsync() As Task
+        CallMain()
+    End Function
+    Sub CallMain()
+        'more stuff
+    End Sub
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task DoNotSuggestAsyncAlternativeWhenItReturnsVoid()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 
@@ -595,14 +1156,33 @@ class Test {
     }
 }
 ";
+            await VerifyCS.VerifyAnalyzerAsync(testCS);
 
-            await VerifyCS.VerifyAnalyzerAsync(test);
+            var testVB = @"
+Imports System.Threading.Tasks
+
+Module Program
+    Sub Main()
+    End Sub
+
+    Sub LogInformation()
+    End Sub
+
+    Sub LogInformationAsync()
+    End Sub
+    Function MethodAsync() As Task
+        LogInformation()
+        Return Task.CompletedTask
+    End Function
+End Module
+";
+            await VerifyVB.VerifyAnalyzerAsync(testVB);
         }
 
         [Fact]
         public async Task JTFRunInTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 
@@ -620,7 +1200,7 @@ class Test {
             var csharpTest = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
-                TestCode = test,
+                TestCode = testCS,
             };
             await csharpTest.RunAsync();
         }
@@ -628,7 +1208,7 @@ class Test {
         [Fact]
         public async Task JTFRunInTaskReturningMethod_WithExtraReturn_GeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 
@@ -650,7 +1230,7 @@ class Test {
             var csharpTest = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
-                TestCode = test,
+                TestCode = testCS,
             };
             await csharpTest.RunAsync();
         }
@@ -658,7 +1238,7 @@ class Test {
         [Fact]
         public async Task JTFRunInAsyncMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 
@@ -675,16 +1255,15 @@ class Test {
             var csharpTest = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
-                TestCode = test,
+                TestCode = testCS,
             };
             await csharpTest.RunAsync();
         }
 
-
         [Fact]
         public async Task JTFRunOfTInTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 
@@ -702,7 +1281,7 @@ class Test {
             var csharpTest = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
-                TestCode = test,
+                TestCode = testCS,
             };
             await csharpTest.RunAsync();
         }
@@ -710,7 +1289,7 @@ class Test {
         [Fact]
         public async Task JTJoinOfTInTaskReturningMethodGeneratesWarning()
         {
-            var test = @"
+            var testCS = @"
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
 
@@ -729,7 +1308,7 @@ class Test {
             var csharpTest = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
-                TestCode = test,
+                TestCode = testCS,
             };
             await csharpTest.RunAsync();
         }
@@ -737,7 +1316,7 @@ class Test {
         [Fact]
         public async Task XunitThrowAsyncNotSuggestedInAsyncTestMethod()
         {
-            var test = @"
+            var testCS = @"
 using System;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Threading;
@@ -756,7 +1335,80 @@ class Test {
             var csharpTest = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
-                TestCode = test,
+                TestCode = testCS,
+            };
+            await csharpTest.RunAsync();
+        }
+
+        [Fact]
+        public async Task IVsTaskWaitInTaskReturningMethodGeneratesWarning()
+        {
+            var testCS = @"
+using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
+using Task = System.Threading.Tasks.Task;
+
+class Test {
+    Task T() {
+        IVsTask t = null;
+        [|t.Wait()|];
+        return Task.FromResult(1);
+    }
+}
+";
+            var csharpTest = new VerifyCS.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
+                TestCode = testCS,
+            };
+            await csharpTest.RunAsync();
+        }
+
+        [Fact]
+        public async Task IVsTaskGetResultInTaskReturningMethodGeneratesWarning()
+        {
+            var testCS = @"
+using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
+using Task = System.Threading.Tasks.Task;
+
+class Test {
+    Task T() {
+        IVsTask t = null;
+        object result = [|t.GetResult()|];
+        return Task.FromResult(1);
+    }
+}
+";
+            var csharpTest = new VerifyCS.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
+                TestCode = testCS,
+            };
+            await csharpTest.RunAsync();
+        }
+
+        [Fact]
+        public async Task IVsTaskGetResultInTaskReturningMethod_WithoutUsing_OffersNoFix()
+        {
+            var testCS = @"
+using System.Threading.Tasks;
+using Microsoft.VisualStudio.Shell.Interop;
+
+class Test {
+    Task T() {
+        IVsTask t = null;
+        object result = [|t.GetResult()|];
+        return Task.FromResult(1);
+    }
+}
+";
+            var csharpTest = new VerifyCS.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
+                TestCode = testCS,
             };
             await csharpTest.RunAsync();
         }

@@ -3,16 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Analyzer.Utilities;
 using Analyzer.Utilities.Extensions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
-using static Microsoft.NetCore.Analyzers.Runtime.CommonInterests;
 
 namespace Microsoft.NetCore.Analyzers.Runtime
 {
@@ -92,9 +89,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                     return;
                 }
 
-                var invocationExpressionSyntax = context.Operation.Syntax;
-                //var memberAccessSyntax = invocationExpressionSyntax.Expression as MemberAccessExpressionSyntax;
-
                 if (InspectMemberAccess(context, CommonInterests.SyncBlockingMethods))
                 {
                     // Don't return double-diagnostics.
@@ -120,15 +114,13 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                         containingMethodName = parentMethod.Name;
                     }
 
-                    //ExpressionSyntax invokedMethodName = CSharpUtils.IsolateMethodName(invocationExpressionSyntax);
                     if (context.Operation is not IInvocationOperation invOperation)
                     {
                         return;
                     }
 
-                    Location invokedMethodLocation = invOperation.Syntax.GetLocation();
-
                     SyntaxNode invokedMethodName = context.Operation.Syntax;
+                    Location invokedMethodLocation = invOperation.Syntax.GetLocation();
 
                     foreach (IMethodSymbol m in symbols.OfType<IMethodSymbol>())
                     {
@@ -191,7 +183,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
         {
             // We want to scan invocations that occur inside Task and Task<T>-returning delegates or methods.
             // That is: methods that either are or could be made async.
-
             IMethodSymbol parentMethod = GetParentMethodOrDelegate(context);
             if (parentMethod == null)
             {
@@ -222,10 +213,11 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                 return false;
             }
 
-            // ValueTask and ValueTask<T> have the AsyncMethodBuilderAttribute.
+            // ValueTask and ValueTask<T> have the AsyncMethodBuilderAttribute
             return (typeSymbol.Name == nameof(Task) && typeSymbol.BelongsToNamespace(Namespaces.SystemThreadingTasks))
                 || IsIAsyncEnumerable(typeSymbol) || typeSymbol.AllInterfaces.Any(IsIAsyncEnumerable)
-                || typeSymbol.GetAttributes().Any(ad => ad.AttributeClass?.Name == nameof(System.Runtime.CompilerServices.AsyncMethodBuilderAttribute) && ad.AttributeClass.BelongsToNamespace(SystemRuntimeCompilerServices));
+                || typeSymbol.GetAttributes().Any(ad => ad.AttributeClass?.Name == nameof(System.Runtime.CompilerServices.AsyncMethodBuilderAttribute) &&
+                ad.AttributeClass.BelongsToNamespace(SystemRuntimeCompilerServices));
 
             static bool IsIAsyncEnumerable(ITypeSymbol symbol)
                 => symbol.Name == "IAsyncEnumerable"
@@ -242,10 +234,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                     if (item.Method.IsMatch(memberSymbol))
                     {
                         Location? location = context.Operation.Syntax.GetLocation();
-                        //if (context.Operation is IInvocationOperation invocation)
-                        //{
-                        //    location = invocation.TargetMethod.Locations[0];
-                        //}
                         ImmutableDictionary<string, string>? properties = ImmutableDictionary<string, string>.Empty
                                 .Add(ExtensionMethodNamespaceKeyName, item.ExtensionMethodNamespace is object ? string.Join(".", item.ExtensionMethodNamespace) : string.Empty);
                         DiagnosticDescriptor descriptor;

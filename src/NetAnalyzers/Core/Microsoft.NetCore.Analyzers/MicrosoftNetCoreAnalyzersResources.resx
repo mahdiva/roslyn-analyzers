@@ -1699,9 +1699,12 @@
     <value>Using both 'static' and 'abstract' modifiers requires opting into preview features. See https://aka.ms/dotnet-warnings/preview-features for more information.</value>
   </data>
   <data name="CallAsyncMethodInAsyncContextMessage" xml:space="preserve">
-    <value>{0} synchronously blocks. Await {1} instead.</value>
+    <value>'{0}' synchronously blocks. Await '{1}' instead.</value>
   </data>
   <data name="CallAsyncMethodInAsyncContextTitle" xml:space="preserve">
     <value>Call async methods when in an async method</value>
+  </data>
+  <data name="CallAsyncMethodInAsyncContextMessage_UseAwait" xml:space="preserve">
+    <value>'{0}' synchronously blocks. Use await instead.</value>
   </data>
 </root>

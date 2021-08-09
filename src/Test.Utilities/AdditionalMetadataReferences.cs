@@ -64,7 +64,7 @@ namespace Test.Utilities
             .AddPackages(ImmutableArray.Create(new PackageIdentity("Microsoft.VisualStudio.Threading", "16.10.56")));
 
         public static ReferenceAssemblies DefaultWithVisualStudioShellInterop { get; } = Default
-            .AddPackages(ImmutableArray.Create(new PackageIdentity("Microsoft.VisualStudio.Shell.15.0", "16.10.31321.278")));
+            .AddPackages(ImmutableArray.Create(new PackageIdentity("Microsoft.VisualStudio.Shell.Interop", "17.0.0-previews-2-31512-422")));
 
         public static MetadataReference SystemCollectionsImmutableReference { get; } = MetadataReference.CreateFromFile(typeof(ImmutableHashSet<>).Assembly.Location);
         public static MetadataReference SystemComponentModelCompositionReference { get; } = MetadataReference.CreateFromFile(typeof(System.ComponentModel.Composition.ExportAttribute).Assembly.Location);

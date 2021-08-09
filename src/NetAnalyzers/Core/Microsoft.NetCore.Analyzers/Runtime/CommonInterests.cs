@@ -70,7 +70,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             new SyncBlockingMethod(new QualifiedMember(new QualifiedType(Namespaces.SystemThreadingTasks, nameof(ValueTask)), nameof(ValueTask<int>.Result)), null),
         };
 
-
         [DebuggerDisplay("{" + nameof(Method) + "} -> {" + nameof(AsyncAlternativeMethodName) + "}")]
         internal readonly struct SyncBlockingMethod
         {
@@ -190,7 +189,7 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                 return false;
             }
 
-            // ValueTask and ValueTask<T> have the AsyncMethodBuilderAttribute.
+            // ValueTask and ValueTask<T> have the AsyncMethodBuilderAttribute
             return (typeSymbol.Name == nameof(Task) && typeSymbol.BelongsToNamespace(Namespaces.SystemThreadingTasks))
                 || IsIAsyncEnumerable(typeSymbol) || typeSymbol.AllInterfaces.Any(IsIAsyncEnumerable)
                 || typeSymbol.GetAttributes().Any(ad => ad.AttributeClass?.Name == AsyncMethodBuilderAttribute.TypeName && ad.AttributeClass.BelongsToNamespace(AsyncMethodBuilderAttribute.Namespace));
@@ -204,17 +203,5 @@ namespace Microsoft.NetCore.Analyzers.Runtime
         {
             return symbol.GetAttributes().Any(a => a.AttributeClass.Name == nameof(ObsoleteAttribute) && a.AttributeClass.BelongsToNamespace(Namespaces.System));
         }
-
-        //internal static SyntaxNode IsolateMethodName(SyntaxNode invocation)
-        //{
-        //    if (invocation is null)
-        //    {
-        //        throw new ArgumentNullException(nameof(invocation));
-        //    }
-
-        //    var memberAccessExpression = invocation.Expression as MemberAccessExpressionSyntax;
-        //    ExpressionSyntax invokedMethodName = memberAccessExpression?.Name ?? invocation.Expression as IdentifierNameSyntax ?? (invocation.Expression as MemberBindingExpressionSyntax)?.Name ?? invocation.Expression;
-        //    return invokedMethodName;
-        //}
     }
 }

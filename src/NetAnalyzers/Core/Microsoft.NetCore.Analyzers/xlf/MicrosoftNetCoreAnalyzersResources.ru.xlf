@@ -143,8 +143,13 @@
         <note />
       </trans-unit>
       <trans-unit id="CallAsyncMethodInAsyncContextMessage">
-        <source>{0} synchronously blocks. Await {1} instead.</source>
-        <target state="new">{0} synchronously blocks. Await {1} instead.</target>
+        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
+        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="CallAsyncMethodInAsyncContextMessage_UseAwait">
+        <source>'{0}' synchronously blocks. Use await instead.</source>
+        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
         <note />
       </trans-unit>
       <trans-unit id="CallAsyncMethodInAsyncContextTitle">
