@@ -71,7 +71,9 @@ namespace Microsoft.NetCore.Analyzers.Runtime
         };
 
         [DebuggerDisplay("{" + nameof(Method) + "} -> {" + nameof(AsyncAlternativeMethodName) + "}")]
+#pragma warning disable CA1815 // Override equals and operator equals on value types
         internal readonly struct SyncBlockingMethod
+#pragma warning restore CA1815 // Override equals and operator equals on value types
         {
             public SyncBlockingMethod(QualifiedMember method, string? asyncAlternativeMethodName = null, IReadOnlyList<string>? extensionMethodNamespace = null)
             {
@@ -87,7 +89,9 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             public IReadOnlyList<string>? ExtensionMethodNamespace { get; }
         }
 
+#pragma warning disable CA1815 // Override equals and operator equals on value types
         internal readonly struct QualifiedMember
+#pragma warning restore CA1815 // Override equals and operator equals on value types
         {
             public QualifiedMember(QualifiedType containingType, string methodName)
             {
@@ -140,7 +144,9 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             return currentNamespace?.IsGlobalNamespace ?? false;
         }
 
+#pragma warning disable CA1815 // Override equals and operator equals on value types
         internal readonly struct QualifiedType
+#pragma warning restore CA1815 // Override equals and operator equals on value types
         {
             public QualifiedType(IReadOnlyList<string> containingTypeNamespace, string typeName)
             {
@@ -161,7 +167,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             public override string ToString() => string.Join(".", this.Namespace.Concat(new[] { this.Name }));
         }
 
-        // Types
         internal static class AsyncMethodBuilderAttribute
         {
             internal const string TypeName = nameof(System.Runtime.CompilerServices.AsyncMethodBuilderAttribute);
@@ -169,7 +174,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             internal static readonly IReadOnlyList<string> Namespace = Namespaces.SystemRuntimeCompilerServices;
         }
 
-        // Utils
         internal static bool HasAsyncCompatibleReturnType([NotNullWhen(true)] this IMethodSymbol? methodSymbol) => IsAsyncCompatibleReturnType(methodSymbol?.ReturnType);
 
         /// <summary>
@@ -195,7 +199,7 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                 || typeSymbol.GetAttributes().Any(ad => ad.AttributeClass?.Name == AsyncMethodBuilderAttribute.TypeName && ad.AttributeClass.BelongsToNamespace(AsyncMethodBuilderAttribute.Namespace));
 
             static bool IsIAsyncEnumerable(ITypeSymbol symbol)
-                => symbol.Name == "IAsyncEnumerable" // TODO: Use nameof(IAsyncEnumerable) after upgrade to netstandard2.1
+                => symbol.Name == "IAsyncEnumerable"
                 && symbol.BelongsToNamespace(Namespaces.SystemCollectionsGeneric);
         }
 

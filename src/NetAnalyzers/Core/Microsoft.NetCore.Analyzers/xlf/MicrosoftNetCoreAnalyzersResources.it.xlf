@@ -142,21 +142,6 @@
         <target state="new">'Buffer.BlockCopy' expects the number of bytes to be copied for the 'count' argument</target>
         <note />
       </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextMessage">
-        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
-        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextMessage_UseAwait">
-        <source>'{0}' synchronously blocks. Use await instead.</source>
-        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextTitle">
-        <source>Call async methods when in an async method</source>
-        <target state="new">Call async methods when in an async method</target>
-        <note />
-      </trans-unit>
       <trans-unit id="CallGCSuppressFinalizeCorrectlyDescription">
         <source>A method that is an implementation of Dispose does not call GC.SuppressFinalize; or a method that is not an implementation of Dispose calls GC.SuppressFinalize; or a method calls GC.SuppressFinalize and passes something other than this (Me in Visual Basic).</source>
         <target state="translated">Un metodo che è un'implementazione di Dispose non chiama GC.SuppressFinalize, un metodo che non è un'implementazione di Dispose chiama GC.SuppressFinalize oppure un metodo chiama GC.SuppressFinalize e passa un elemento diverso da this (Me in Visual Basic).</target>
@@ -2265,6 +2250,21 @@
       <trans-unit id="UseAsSpanReadOnlyInsteadOfArrayRangeIndexerDescription">
         <source>The Range-based indexer on array values produces a copy of requested portion of the array. This copy is usually unnecessary when it is implicitly used as a ReadOnlySpan or ReadOnlyMemory value. Use the AsSpan method to avoid the unnecessary copy.</source>
         <target state="translated">Con l'indicizzatore basato su Range su valori di matrice viene prodotta una copia della porzione richiesta della matrice. Questa copia è in genere non necessaria quando viene usata in modo implicito come valore di ReadOnlySpan o ReadOnlyMemory. Per evitare la copia non necessaria, usare il metodo AsSpan.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextMessage">
+        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
+        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextMessage_NoAlternative">
+        <source>'{0}' synchronously blocks. Use await instead.</source>
+        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextTitle">
+        <source>Call async methods when in an async method</source>
+        <target state="new">Call async methods when in an async method</target>
         <note />
       </trans-unit>
       <trans-unit id="UseAutoValidateAntiforgeryToken">

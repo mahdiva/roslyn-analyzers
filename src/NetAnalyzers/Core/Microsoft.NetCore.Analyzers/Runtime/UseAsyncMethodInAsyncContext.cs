@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Threading.Tasks;
 using Analyzer.Utilities;
 using Analyzer.Utilities.Extensions;
 using Microsoft.CodeAnalysis;
@@ -14,47 +13,37 @@ using Microsoft.CodeAnalysis.Operations;
 namespace Microsoft.NetCore.Analyzers.Runtime
 {
     /// <summary>
-    /// This analyzer recognizes invocations of JoinableTaskFactory.Run(Func{Task}), JoinableTask.Join(), and variants
-    /// that occur within an async method, thus defeating a perfect opportunity to be asynchronous.
+    /// This analyzer suggests using async methods when inside an async method
     /// </summary>
-    /// <remarks>
-    /// <![CDATA[
-    ///   async Task MyMethod()
-    ///   {
-    ///     JoinableTaskFactory jtf;
-    ///     jtf.Run(async delegate {  /* This analyzer will report warning on this JoinableTaskFactory.Run invocation. */
-    ///       await Stuff();
-    ///     });
-    ///   }
-    /// ]]>
-    /// </remarks>
     [DiagnosticAnalyzer(LanguageNames.CSharp, LanguageNames.VisualBasic)]
-    public sealed class UseAsyncInAsync : DiagnosticAnalyzer
+    public sealed class UseAsyncMethodInAsyncContext : DiagnosticAnalyzer
     {
         internal const string RuleId = "CA2018";
         internal const string AsyncMethodKeyName = "AsyncMethodName";
         internal const string ExtensionMethodNamespaceKeyName = "ExtensionMethodNamespace";
         internal const string MandatoryAsyncSuffix = "Async";
 
-        private static readonly LocalizableString s_localizableTitle = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.CallAsyncMethodInAsyncContextTitle), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
-        private static readonly LocalizableString s_localizableMessage = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.CallAsyncMethodInAsyncContextMessage), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
-        private static readonly LocalizableString s_localizableDescription = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.CallAsyncMethodInAsyncContextMessage), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
+        private static readonly LocalizableString s_localizableTitle = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.UseAsyncMethodInAsyncContextTitle), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
+        private static readonly LocalizableString s_localizableMessage = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.UseAsyncMethodInAsyncContextMessage), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
+        private static readonly LocalizableString s_localizableDescription = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.UseAsyncMethodInAsyncContextMessage), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
+        private static readonly LocalizableString s_localizableMessageNoAlternative = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.UseAsyncMethodInAsyncContextMessage_NoAlternative), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
+        private static readonly LocalizableString s_localizableDescriptionNoAlternative = new LocalizableResourceString(nameof(MicrosoftNetCoreAnalyzersResources.UseAsyncMethodInAsyncContextMessage_NoAlternative), MicrosoftNetCoreAnalyzersResources.ResourceManager, typeof(MicrosoftNetCoreAnalyzersResources));
 
         internal static DiagnosticDescriptor Descriptor = DiagnosticDescriptorHelper.Create(RuleId,
                                                                                       s_localizableTitle,
                                                                                       s_localizableMessage,
                                                                                       DiagnosticCategory.Reliability,
-                                                                                      RuleLevel.BuildWarning,
+                                                                                      RuleLevel.IdeSuggestion,
                                                                                       s_localizableDescription,
                                                                                       isPortedFxCopRule: false,
                                                                                       isDataflowRule: false);
 
         internal static DiagnosticDescriptor DescriptorNoAlternativeMethod = DiagnosticDescriptorHelper.Create(RuleId,
                                                                               s_localizableTitle,
-                                                                              s_localizableMessage,
+                                                                              s_localizableMessageNoAlternative,
                                                                               DiagnosticCategory.Reliability,
-                                                                              RuleLevel.BuildWarning,
-                                                                              s_localizableDescription,
+                                                                              RuleLevel.IdeSuggestion,
+                                                                              s_localizableDescriptionNoAlternative,
                                                                               isPortedFxCopRule: false,
                                                                               isDataflowRule: false);
 
@@ -67,7 +56,6 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             context.RegisterOperationBlockStartAction(context =>
             {
                 context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
-
                 context.RegisterOperationAction(AnalyzePropertyGetter, OperationKind.PropertyReference);
             });
         }
@@ -82,13 +70,8 @@ namespace Microsoft.NetCore.Analyzers.Runtime
 
         internal static void AnalyzeInvocation(OperationAnalysisContext context)
         {
-            if (IsInTaskReturningMethodOrDelegate(context))
+            if (context.Operation is IInvocationOperation invocationOperation && IsInTaskReturningMethodOrDelegate(context))
             {
-                if (context.Operation is not IInvocationOperation)
-                {
-                    return;
-                }
-
                 if (InspectMemberAccess(context, CommonInterests.SyncBlockingMethods))
                 {
                     // Don't return double-diagnostics.
@@ -98,15 +81,18 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                 // Also consider all method calls to check for Async-suffixed alternatives.
                 var semanticModel = context.Operation.SemanticModel;
                 SymbolInfo symbolInfo = semanticModel.GetSymbolInfo(context.Operation.Syntax, context.CancellationToken);
-                if (symbolInfo.Symbol is IMethodSymbol methodSymbol && !methodSymbol.Name.EndsWith(MandatoryAsyncSuffix, StringComparison.CurrentCulture) &&
+
+                if (symbolInfo.Symbol is IMethodSymbol methodSymbol &&
+                    !methodSymbol.Name.EndsWith(MandatoryAsyncSuffix, StringComparison.CurrentCulture) &&
                     !methodSymbol.HasAsyncCompatibleReturnType())
                 {
                     string asyncMethodName = methodSymbol.Name + MandatoryAsyncSuffix;
-                    ImmutableArray<ISymbol> symbols = semanticModel.LookupSymbols(
+                    IEnumerable<IMethodSymbol> methodSymbols = semanticModel.LookupSymbols(
                         context.Operation.Syntax.GetLocation().SourceSpan.Start,
                         methodSymbol.ContainingType,
                         asyncMethodName,
-                        includeReducedExtensionMethods: true);
+                        includeReducedExtensionMethods: true)
+                        .OfType<IMethodSymbol>();
 
                     string containingMethodName = "";
                     if (context.ContainingSymbol is IMethodSymbol parentMethod)
@@ -114,20 +100,15 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                         containingMethodName = parentMethod.Name;
                     }
 
-                    if (context.Operation is not IInvocationOperation invOperation)
-                    {
-                        return;
-                    }
-
                     SyntaxNode invokedMethodName = context.Operation.Syntax;
-                    Location invokedMethodLocation = invOperation.Syntax.GetLocation();
+                    Location invokedMethodLocation = invocationOperation.Syntax.GetLocation();
 
-                    foreach (IMethodSymbol m in symbols.OfType<IMethodSymbol>())
+                    foreach (IMethodSymbol method in methodSymbols)
                     {
-                        if (!m.IsObsolete()
-                            && HasSupersetOfParameterTypes(m, methodSymbol)
-                            && m.Name != containingMethodName
-                            && m.HasAsyncCompatibleReturnType())
+                        if (!method.IsObsolete()
+                            && HasSupersetOfParameterTypes(method, methodSymbol)
+                            && method.Name != containingMethodName
+                            && method.HasAsyncCompatibleReturnType())
                         {
                             // An async alternative exists.
                             ImmutableDictionary<string, string>? properties = ImmutableDictionary<string, string>.Empty
@@ -161,7 +142,7 @@ namespace Microsoft.NetCore.Analyzers.Runtime
             return candidateMethod.Parameters.All(candidateParameter => baselineMethod.Parameters.Any(baselineParameter => baselineParameter.Type?.Equals(candidateParameter.Type) ?? false));
         }
 
-        private static IMethodSymbol GetParentMethodOrDelegate(OperationAnalysisContext context)
+        private static IMethodSymbol? GetParentMethodOrDelegate(OperationAnalysisContext context)
         {
             var containingAnonymousFunction = context.Operation.TryGetContainingAnonymousFunctionOrLocalFunction();
             if (containingAnonymousFunction is not null)
@@ -175,7 +156,7 @@ namespace Microsoft.NetCore.Analyzers.Runtime
                 containingSymbol = containingSymbol.ContainingSymbol;
             }
 
-            IMethodSymbol parentMethod = (IMethodSymbol)containingSymbol;
+            IMethodSymbol? parentMethod = (IMethodSymbol?)containingSymbol;
             return parentMethod;
         }
 
@@ -183,45 +164,14 @@ namespace Microsoft.NetCore.Analyzers.Runtime
         {
             // We want to scan invocations that occur inside Task and Task<T>-returning delegates or methods.
             // That is: methods that either are or could be made async.
-            IMethodSymbol parentMethod = GetParentMethodOrDelegate(context);
+            IMethodSymbol? parentMethod = GetParentMethodOrDelegate(context);
+
             if (parentMethod == null)
             {
                 return false;
             }
 
-            ITypeSymbol returnTypeSymbol = parentMethod.ReturnType;
-
-            if (returnTypeSymbol is null)
-            {
-                return false;
-            }
-
-            return IsAsyncCompatibleReturnType(returnTypeSymbol);
-        }
-
-        private static readonly IReadOnlyList<string> SystemRuntimeCompilerServices = new[]
-        {
-            nameof(System),
-            nameof(System.Runtime),
-            nameof(System.Runtime.CompilerServices),
-        };
-
-        private static bool IsAsyncCompatibleReturnType(ITypeSymbol? typeSymbol)
-        {
-            if (typeSymbol is null)
-            {
-                return false;
-            }
-
-            // ValueTask and ValueTask<T> have the AsyncMethodBuilderAttribute
-            return (typeSymbol.Name == nameof(Task) && typeSymbol.BelongsToNamespace(Namespaces.SystemThreadingTasks))
-                || IsIAsyncEnumerable(typeSymbol) || typeSymbol.AllInterfaces.Any(IsIAsyncEnumerable)
-                || typeSymbol.GetAttributes().Any(ad => ad.AttributeClass?.Name == nameof(System.Runtime.CompilerServices.AsyncMethodBuilderAttribute) &&
-                ad.AttributeClass.BelongsToNamespace(SystemRuntimeCompilerServices));
-
-            static bool IsIAsyncEnumerable(ITypeSymbol symbol)
-                => symbol.Name == "IAsyncEnumerable"
-                && symbol.BelongsToNamespace(Namespaces.SystemCollectionsGeneric);
+            return parentMethod.HasAsyncCompatibleReturnType();
         }
 
         private static bool InspectMemberAccess(OperationAnalysisContext context, IEnumerable<CommonInterests.SyncBlockingMethod> problematicMethods)

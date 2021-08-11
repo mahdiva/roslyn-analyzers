@@ -142,21 +142,6 @@
         <target state="new">'Buffer.BlockCopy' expects the number of bytes to be copied for the 'count' argument</target>
         <note />
       </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextMessage">
-        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
-        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextMessage_UseAwait">
-        <source>'{0}' synchronously blocks. Use await instead.</source>
-        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextTitle">
-        <source>Call async methods when in an async method</source>
-        <target state="new">Call async methods when in an async method</target>
-        <note />
-      </trans-unit>
       <trans-unit id="CallGCSuppressFinalizeCorrectlyDescription">
         <source>A method that is an implementation of Dispose does not call GC.SuppressFinalize; or a method that is not an implementation of Dispose calls GC.SuppressFinalize; or a method calls GC.SuppressFinalize and passes something other than this (Me in Visual Basic).</source>
         <target state="translated">Dispose uygulaması olan bir metot GC.SuppressFinalize çağrısı yapmıyor, Dispose uygulaması olmayan bir metot GC.SuppressFinalize çağrısı yapıyor ya da bir metot GC.SuppressFinalize çağrısı yapıyor ve this (Visual Basic’te Me) dışında bir şey geçiriyor.</target>
@@ -2265,6 +2250,21 @@
       <trans-unit id="UseAsSpanReadOnlyInsteadOfArrayRangeIndexerDescription">
         <source>The Range-based indexer on array values produces a copy of requested portion of the array. This copy is usually unnecessary when it is implicitly used as a ReadOnlySpan or ReadOnlyMemory value. Use the AsSpan method to avoid the unnecessary copy.</source>
         <target state="translated">Dizi değerleri üzerindeki Aralık tabanlı dizin oluşturucu, dizinin istenen kısmının bir kopyasını üretir. Bu kopya, örtük olarak bir ReadOnlySpan veya ReadOnlyMemory değeri olarak kullanıldığında genellikle gerekli değildir. Kopya oluşturmamak için AsSpan metodunu kullanın.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextMessage">
+        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
+        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextMessage_NoAlternative">
+        <source>'{0}' synchronously blocks. Use await instead.</source>
+        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextTitle">
+        <source>Call async methods when in an async method</source>
+        <target state="new">Call async methods when in an async method</target>
         <note />
       </trans-unit>
       <trans-unit id="UseAutoValidateAntiforgeryToken">

@@ -1,19 +1,18 @@
 ﻿// Copyright (c) Microsoft.  All Rights Reserved.  Licensed under the Apache License, Version 2.0.  See License.txt in the project root for license information. 
 
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis.Testing;
 using Test.Utilities;
 using Xunit;
 using VerifyCS = Test.Utilities.CSharpCodeFixVerifier<
-    Microsoft.NetCore.Analyzers.Runtime.UseAsyncInAsync,
+    Microsoft.NetCore.Analyzers.Runtime.UseAsyncMethodInAsyncContext,
     Microsoft.CodeAnalysis.Testing.EmptyCodeFixProvider>;
 using VerifyVB = Test.Utilities.VisualBasicCodeFixVerifier<
-    Microsoft.NetCore.Analyzers.Runtime.UseAsyncInAsync,
+    Microsoft.NetCore.Analyzers.Runtime.UseAsyncMethodInAsyncContext,
     Microsoft.CodeAnalysis.Testing.EmptyCodeFixProvider>;
 
 namespace Microsoft.NetCore.Analyzers.Runtime.UnitTests
 {
-    public class UseAsyncInAsyncTests
+    public class UseAsyncMethodInAsyncContextTests
     {
 
         [Fact]
@@ -83,7 +82,7 @@ End Module
         }
 
         [Fact]
-        public async Task TaskWait_InIAsyncEnumerableAsyncMethod_ShouldReportWarning() // Feature 'async streams' is not available in C# 7.3. Please use language version 8.0 or greater.
+        public async Task TaskWait_InIAsyncEnumerableAsyncMethod_ShouldReportWarning()
         {
             var testCS = @"
 using System;
@@ -99,7 +98,12 @@ class Test {
     }
 }
 ";
-            //await VerifyCS.VerifyAnalyzerAsync(testCS);
+            var csTestVerify = new VerifyCS.Test
+            {
+                LanguageVersion = CodeAnalysis.CSharp.LanguageVersion.CSharp9,
+                TestCode = testCS,
+            };
+            await csTestVerify.RunAsync();
         }
 
         [Fact]
@@ -503,7 +507,7 @@ End Module
         }
 
         [Fact]
-        public async Task SyncInvocationWhereAsyncOptionIsPartlyObsolete_GeneratesWarning() // Obsolete
+        public async Task SyncInvocationWhereAsyncOptionIsPartlyObsolete_GeneratesWarning()
         {
             var testCS = @"
 using System;
@@ -533,11 +537,13 @@ Module Program
         Test()
     End Sub
     Function Test() As Task
-        Foo(10, 15.0)
+        [|Foo(10, 15.0)|]
         Return Task.FromResult(1)
     End Function
 
     Friend Sub Foo(x As Integer, y As Integer)
+    End Sub
+    Friend Sub Foo(x As Integer, y As Double)
     End Sub
     <Obsolete>
     Friend Function FooAsync(x As Integer, y As Integer) As Task
@@ -1197,12 +1203,38 @@ class Test {
     void Run() { }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Threading
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim jtf As JoinableTaskFactory = Nothing
+        [|jtf.Run(Function() TplExtensions.CompletedTask)|]
+        Run()
+        Return Task.FromResult(1)
+    End Function
+    Sub Run()
+    End Sub
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1227,12 +1259,41 @@ class Test {
     void Run() { }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Threading
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim jtf As JoinableTaskFactory = Nothing
+        [|jtf.Run(Function() TplExtensions.CompletedTask)|]
+        If (False) Then
+            Return Task.FromResult(2)
+        End If
+        Run()
+        Return Task.FromResult(1)
+    End Function
+
+    Sub Run()
+    End Sub
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1252,12 +1313,37 @@ class Test {
     void Run() { }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Threading
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Async Function Test() As Task
+        Dim jtf As JoinableTaskFactory = Nothing
+        [|jtf.Run(Function() TplExtensions.CompletedTask)|]
+        Program.Run()
+    End Function
+    Sub Run()
+    End Sub
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1278,12 +1364,38 @@ class Test {
     void Run() { }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Threading
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim jtf As JoinableTaskFactory = Nothing
+        Dim result As Integer = [|jtf.Run(Function() Task.FromResult(1))|]
+        Program.Run()
+        Return Task.FromResult(2)
+    End Function
+    Sub Run()
+    End Sub
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1305,12 +1417,39 @@ class Test {
     void Join() { }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Threading
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim jtf As JoinableTaskFactory = Nothing
+        Dim jt As JoinableTask(Of Integer) = jtf.RunAsync(Function() Task.FromResult(1))
+        [|jt.Join()|]
+        Program.Join()
+        Return Task.FromResult(2)
+    End Function
+    Sub Join()
+    End Sub
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1332,12 +1471,42 @@ class Test {
 }
 ";
 
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Threading
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Throws(Of Exception)(Sub()
+                             End Sub)
+        Return Task.FromResult(1)
+    End Function
+
+    Sub Throws(Of t)(action As Action)
+    End Sub
+    Function ThrowAsync(Of t)(action As Func(Of Task)) As Task
+        Return TplExtensions.CompletedTask
+    End Function
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioThreading,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1357,12 +1526,37 @@ class Test {
     }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Shell
+Imports Microsoft.VisualStudio.Shell.Interop
+Imports Task = System.Threading.Tasks.Task
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim t As IVsTask = Nothing
+        [|t.Wait()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1382,12 +1576,37 @@ class Test {
     }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Shell
+Imports Microsoft.VisualStudio.Shell.Interop
+Imports Task = System.Threading.Tasks.Task
+
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim t As IVsTask = Nothing
+        Dim result As Object = [|t.GetResult()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
 
         [Fact]
@@ -1405,12 +1624,34 @@ class Test {
     }
 }
 ";
-            var csharpTest = new VerifyCS.Test
+            var csTestVerify = new VerifyCS.Test
             {
                 ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
                 TestCode = testCS,
             };
-            await csharpTest.RunAsync();
+            await csTestVerify.RunAsync();
+
+            var testVB = @"
+Imports System.Threading.Tasks
+Imports Microsoft.VisualStudio.Shell.Interop
+Module Program
+    Sub Main()
+        Test()
+    End Sub
+
+    Function Test() As Task
+        Dim t As IVsTask = Nothing
+        Dim result As Object = [|t.GetResult()|]
+        Return Task.FromResult(1)
+    End Function
+End Module
+";
+            var vbTestVerify = new VerifyVB.Test
+            {
+                ReferenceAssemblies = AdditionalMetadataReferences.DefaultWithVisualStudioShellInterop,
+                TestCode = testVB,
+            };
+            await vbTestVerify.RunAsync();
         }
     }
 }

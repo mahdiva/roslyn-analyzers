@@ -142,21 +142,6 @@
         <target state="new">'Buffer.BlockCopy' expects the number of bytes to be copied for the 'count' argument</target>
         <note />
       </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextMessage">
-        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
-        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextMessage_UseAwait">
-        <source>'{0}' synchronously blocks. Use await instead.</source>
-        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
-        <note />
-      </trans-unit>
-      <trans-unit id="CallAsyncMethodInAsyncContextTitle">
-        <source>Call async methods when in an async method</source>
-        <target state="new">Call async methods when in an async method</target>
-        <note />
-      </trans-unit>
       <trans-unit id="CallGCSuppressFinalizeCorrectlyDescription">
         <source>A method that is an implementation of Dispose does not call GC.SuppressFinalize; or a method that is not an implementation of Dispose calls GC.SuppressFinalize; or a method calls GC.SuppressFinalize and passes something other than this (Me in Visual Basic).</source>
         <target state="translated">Eine Methode, die eine Implementierung von "Dispose" ist, ruft "GC.SuppressFinalize" nicht auf, oder eine Methode, die keine Implementierung von "Dispose" ist, ruft "GC.SuppressFinalize" auf, oder eine Methode ruft "GC.SuppressFinalize" auf und übergibt etwas anderes als dies ("Me" in Visual Basic).</target>
@@ -2265,6 +2250,21 @@
       <trans-unit id="UseAsSpanReadOnlyInsteadOfArrayRangeIndexerDescription">
         <source>The Range-based indexer on array values produces a copy of requested portion of the array. This copy is usually unnecessary when it is implicitly used as a ReadOnlySpan or ReadOnlyMemory value. Use the AsSpan method to avoid the unnecessary copy.</source>
         <target state="translated">Der Range-basierte Indexer für Arraywerte erzeugt eine Kopie des angeforderten Teils des Arrays. Diese Kopie ist bei der impliziten Verwendung als ReadOnlySpan- oder ReadOnlyMemory-Wert in der Regel nicht notwendig. Verwenden Sie die AsSpan-Methode, um die nicht benötigte Kopie zu vermeiden.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextMessage">
+        <source>'{0}' synchronously blocks. Await '{1}' instead.</source>
+        <target state="new">'{0}' synchronously blocks. Await '{1}' instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextMessage_NoAlternative">
+        <source>'{0}' synchronously blocks. Use await instead.</source>
+        <target state="new">'{0}' synchronously blocks. Use await instead.</target>
+        <note />
+      </trans-unit>
+      <trans-unit id="UseAsyncMethodInAsyncContextTitle">
+        <source>Call async methods when in an async method</source>
+        <target state="new">Call async methods when in an async method</target>
         <note />
       </trans-unit>
       <trans-unit id="UseAutoValidateAntiforgeryToken">
